@@ -37,8 +37,40 @@ regd_users.post("/login", (req,res) => {
 
 // Add a book review
 regd_users.put("/auth/review/:isbn", (req, res) => {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+  const isbn = req.params.isbn;
+  const reviewText = req.query.review;
+
+  if (!req.session || !req.session.authorization || !req.session.authorization.username) {
+    return res.status(401).json({ message: "You must be logged in to post a review." });
+  }
+
+  const username = req.session.authorization.username;
+
+  if (!reviewText) {
+    return res.status(400).json({ message: "Review text is required as a query parameter 'review'." });
+  }
+
+  // Find the book by ISBN
+  const book = Object.values(books).find(b => b.isbn === isbn);
+  if (!book) {
+    return res.status(404).json({ message: "Book not found" });
+  }
+
+  // Ensure reviews array exists
+  if (!Array.isArray(book.reviews)) book.reviews = [];
+
+  // Find existing review by this user (reviews can be stored as objects)
+  const existingIndex = book.reviews.findIndex(r => (typeof r === 'object' && r.username === username));
+
+  if (existingIndex !== -1) {
+    // Update existing review
+    book.reviews[existingIndex].review = reviewText;
+    return res.status(200).json({ message: "Review updated", reviews: book.reviews });
+  } else {
+    // Add new review for this user
+    book.reviews.push({ username: username, review: reviewText });
+    return res.status(200).json({ message: "Review added", reviews: book.reviews });
+  }
 });
 
 module.exports.authenticated = regd_users;
