@@ -73,6 +73,46 @@ regd_users.put("/auth/review/:isbn", (req, res) => {
   }
 });
 
+// Delete a review for the logged-in user
+regd_users.delete("/auth/review/:isbn", (req, res) => {
+  const isbn = req.params.isbn;
+
+  if (!req.session || !req.session.authorization || !req.session.authorization.username) {
+    return res.status(401).json({ message: "You must be logged in to delete a review." });
+  }
+
+  const username = req.session.authorization.username;
+
+  // Find the book by ISBN
+  const book = Object.values(books).find(b => b.isbn === isbn);
+  if (!book) {
+    return res.status(404).json({ message: "Book not found" });
+  }
+
+  if (!Array.isArray(book.reviews) || book.reviews.length === 0) {
+    return res.status(404).json({ message: "No reviews found for this book" });
+  }
+
+  const before = book.reviews.length;
+
+  // Keep non-user reviews and string reviews; remove any review objects by this username
+  book.reviews = book.reviews.filter(r => {
+    if (typeof r === 'object' && r.username) {
+      return r.username !== username;
+    }
+    // leave string reviews untouched
+    return true;
+  });
+
+  const after = book.reviews.length;
+
+  if (after === before) {
+    return res.status(404).json({ message: "No review by this user found for this book" });
+  }
+
+  return res.status(200).json({ message: "Review deleted", reviews: book.reviews });
+});
+
 module.exports.authenticated = regd_users;
 module.exports.isValid = isValid;
 module.exports.users = users;
